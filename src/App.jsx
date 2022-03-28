@@ -4,11 +4,10 @@ import './App.css'
 import DropFileInput from './components/drop-file-input/DropFileInput'
 import { ImageConfig } from './config/ImageConfig';
 
-
 function App() {
 
   const onFileChange = (files) => {
-    // console.log(files)
+    console.log(files)
   }
 
   return (

@@ -1,25 +1,20 @@
-import { useState } from 'react'
+import { useState } from "react";
 
-import './App.css'
-import DropFileInput from './components/drop-file-input/DropFileInput'
-import { ImageConfig } from './config/ImageConfig';
+import "./App.css";
+import DropFileInput from "./components/drop-file-input/DropFileInput";
+import logo from "./assets/logo.png";
 
 function App() {
-
   const onFileChange = (files) => {
-    console.log(files)
-  }
+    console.log(files);
+  };
 
   return (
- 
     <div className="box">
-      <h2 className='header'>
-        React drop files input
-      </h2>
+      <img src={logo} width={90} />
       <DropFileInput onFileChange={(files) => onFileChange(files)} />
     </div>
-   
-  )
+  );
 }
 
-export default App
+export default App;

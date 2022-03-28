@@ -6,57 +6,68 @@ import uploadImg from "../../assets/upload.png";
 import api from "../../services/api";
 import { MdLink, MdCheckCircle, MdError } from "react-icons/md";
 import fileSize from "filesize";
-import {uniqueId} from 'lodash'
+import { uniqueId } from "lodash";
 import { CircularProgressbar } from "react-circular-progressbar";
 
 const DropFileInput = (props) => {
   const wrapperRef = useRef(null);
   const [fileList, setFileList] = useState([]);
-  const [message, setMessage] = useState("Anexe seus arquivos");
+  const [message, setMessage] = useState("Arraste seus arquivos");
   const onDragEnter = (e) => {
     setMessage("Solte seus arquivos aqui :)");
     wrapperRef.current.classList.add("dragover");
   };
   const onDragLeave = () => {
     wrapperRef.current.classList.remove("dragover");
-    setMessage("Anexe seus arquivos");
+    setMessage("Arraste seus arquivos");
   };
-  const onDrop = () => wrapperRef.current.classList.remove("dragover");
+  const onDrop = () => {
+    setMessage("Arraste seus arquivos");
+    wrapperRef.current.classList.remove("dragover");
+  };
 
   const onFileDrop = (e) => {
     const newFile = [...e.target.files];
 
     if (newFile) {
       const updateList = [...fileList, ...newFile];
-
-      const arquivos = updateList.map((item) => ({
-        item,
-        id: uniqueId(),
-        progress: 0,
-        uploaded: false,
-        error: false,
-        url: null,
-      }));
+      console.log("antes de mudar o obj", updateList);
+      const arquivos = updateList.map((item) => {
+        if (item.item) return item;
+        return {
+          item,
+          id: uniqueId(),
+          progress: 0,
+          uploaded: false,
+          error: false,
+          url: null,
+        };
+      });
       setFileList(arquivos);
       processUpload(arquivos);
-
       props.onFileChange(fileList);
     }
   };
 
   const processUpload = (archives) => {
-      let file = []
     archives.map((archive) => {
       const data = new FormData();
       data.append("file", archive.item);
-      api.post("/arquivo", data, {
-        onUploadProgress: (e) => {
-        
-            const progress =  parseInt(Math.round((e.loaded * 100)/e.total))
-        
-          
-        }
-      });
+      api
+        .post("/arquivo", data, {
+          onUploadProgress: (e) => {
+            const progress = parseInt(Math.round((e.loaded * 100) / e.total));
+            setFileList((arr) =>
+              arr.map((file) => {
+                const uploaded = progress === 100 ? true : false;
+                return file.id === archive.id
+                  ? { ...file, progress, uploaded }
+                  : file;
+              })
+            );
+          },
+        })
+        .then((resp) => console.log(resp));
     });
   };
 
@@ -64,7 +75,6 @@ const DropFileInput = (props) => {
     const updatedList = [...fileList];
     updatedList.splice(fileList.indexOf(file), 1);
     setFileList(updatedList);
-    //   props.onFileChange(updatedList);
   };
 
   return (
@@ -86,12 +96,13 @@ const DropFileInput = (props) => {
       {console.log(fileList)}
       {fileList.length > 0 ? (
         <div className="drop-file-preview">
-          <p className="drop-file-preview__title">Ready to upload</p>
+          <p className="drop-file-preview__title">Vizualize seus uploads</p>
           {fileList.map((item, index) => (
             <div key={index} className="drop-file-preview__item">
               <img
                 src={
-                  ImageConfig[item.item.type.split("/")[1]] || ImageConfig["default"]
+                  ImageConfig[item.item.type.split("/")[1]] ||
+                  ImageConfig["default"]
                 }
                 alt=""
               />
@@ -100,20 +111,26 @@ const DropFileInput = (props) => {
                 <p>{item.item.name}</p>
                 <p>{fileSize(item.item.size)}</p>
               </div>
-              <CircularProgressbar
-                styles={{
-                  root: { width: 24 },
-                  path: { stroke: "#0F70CA" },
-                }}
-                strokeWidth={10}
-                value={item.progress}
-              />
-              <span
-                className="drop-file-preview__item__del"
-                onClick={() => fileRemove(item)}
-              >
-                X
-              </span>
+              {!item.uploaded && (
+                <CircularProgressbar
+                  styles={{
+                    root: { width: 24 },
+                    path: { stroke: "#0F70CA" },
+                  }}
+                  strokeWidth={10}
+                  value={item.progress}
+                />
+              )}
+              {item.uploaded && <MdCheckCircle size={28} />}
+              {item.uploaded && item.url && <MdCheckCircle size={28} />}
+              {item.uploaded && (
+                <span
+                  className="drop-file-preview__item__del"
+                  onClick={() => fileRemove(item)}
+                >
+                  X
+                </span>
+              )}
             </div>
           ))}
         </div>

@@ -22,24 +22,8 @@ body {
   line-height: 1.5;
   background-color: var(--body-bg);
   color: var(--txt-color);
-
   display: flex;
   justify-content: center;
   padding-top: 100px;
   height: 100vh;
-}
-
-.box {
-  background-color: var(--box-bg);
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: var(--box-shadow);
-}
-.box img {
-  margin: 5px;
-}
-
-.header {
-  margin-bottom: 30px;
-  text-align: center;
 }

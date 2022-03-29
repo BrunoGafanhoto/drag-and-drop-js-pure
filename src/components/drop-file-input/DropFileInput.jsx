@@ -12,17 +12,17 @@ import { CircularProgressbar } from "react-circular-progressbar";
 const DropFileInput = (props) => {
   const wrapperRef = useRef(null);
   const [fileList, setFileList] = useState([]);
-  const [message, setMessage] = useState("Arraste seus arquivos");
+  const [message, setMessage] = useState("Arraste seus arquivos (3 MB)");
   const onDragEnter = (e) => {
     setMessage("Solte seus arquivos aqui :)");
     wrapperRef.current.classList.add("dragover");
   };
   const onDragLeave = () => {
     wrapperRef.current.classList.remove("dragover");
-    setMessage("Arraste seus arquivos");
+    setMessage("Arraste seus arquivos (3 MB)");
   };
   const onDrop = () => {
-    setMessage("Arraste seus arquivos");
+    setMessage("Arraste seus arquivos (3 MB)");
     wrapperRef.current.classList.remove("dragover");
   };
 
@@ -41,6 +41,8 @@ const DropFileInput = (props) => {
           uploaded: false,
           error: false,
           url: null,
+          extensionValid: true,
+          sizeValid: true,
         };
       });
       setFileList(arquivos);
@@ -49,25 +51,75 @@ const DropFileInput = (props) => {
     }
   };
 
+  const validationFile = (archive) => {
+    const extensionPDF = "application/pdf";
+    const maxSize = 3 * 1024 * 1024;
+
+    //Verificando se existe alguma inconformidade;
+    if (archive.item.type !== extensionPDF || archive.item.size > maxSize) {
+      //verificando extensao
+      if (archive.item.type !== extensionPDF) {
+        setFileList((arr) =>
+          arr.map((file) => {
+            return file.id === archive.id
+              ? { ...file, error: true, extensionValid: false }
+              : file;
+          })
+        );
+      }
+      // verificando tamanho do arquivo
+      if (archive.item.size > maxSize) {
+        setFileList((arr) =>
+          arr.map((file) => {
+            return file.id === archive.id
+              ? { ...file, error: true, sizeValid: false }
+              : file;
+          })
+        );
+      }
+
+      return false;
+    }
+
+    return true;
+  };
+
   const processUpload = (archives) => {
     archives.map((archive) => {
       const data = new FormData();
       data.append("file", archive.item);
-      api
-        .post("/arquivo", data, {
-          onUploadProgress: (e) => {
-            const progress = parseInt(Math.round((e.loaded * 100) / e.total));
+
+      if (validationFile(archive)) {
+        api
+          .post("/arquivo", data, {
+            onUploadProgress: (e) => {
+              const progress = parseInt(Math.round((e.loaded * 100) / e.total));
+              setFileList((arr) =>
+                arr.map((file) => {
+                  // const uploaded = progress === 100 ? true : false;
+                  return file.id === archive.id ? { ...file, progress } : file;
+                })
+              );
+            },
+          })
+          .then((resp) => {
             setFileList((arr) =>
               arr.map((file) => {
-                const uploaded = progress === 100 ? true : false;
                 return file.id === archive.id
-                  ? { ...file, progress, uploaded }
+                  ? {
+                      ...file,
+                      uploaded: true,
+                      id: resp.data._id,
+                      url: resp.data.url,
+                    }
                   : file;
               })
             );
-          },
-        })
-        .then((resp) => console.log(resp));
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
     });
   };
 
@@ -93,46 +145,79 @@ const DropFileInput = (props) => {
         </div>
         <input type="file" value="" onChange={onFileDrop} multiple />
       </div>
-      {console.log(fileList)}
+
       {fileList.length > 0 ? (
         <div className="drop-file-preview">
           <p className="drop-file-preview__title">Vizualize seus uploads</p>
-          {fileList.map((item, index) => (
-            <div key={index} className="drop-file-preview__item">
-              <img
-                src={
-                  ImageConfig[item.item.type.split("/")[1]] ||
-                  ImageConfig["default"]
-                }
-                alt=""
-              />
+          <div className="content_preview_file">
+            {fileList.map((item, index) => (
+              <div key={index} className="drop-file-preview__item">
+                <div className="preview__item_info">
+                  <img
+                    src={
+                      ImageConfig[item.item.type.split("/")[1]] ||
+                      ImageConfig["default"]
+                    }
+                    alt=""
+                  />
+                  <div className="drop-file-preview__item__info">
+                    <p>{item.item.name}</p>
+                    {!item.extensionValid && (
+                      <span className="file_invalid"> Extensão inválida</span>
+                    )}
+                    <p>
+                      {fileSize(item.item.size)}
+                      {!item.sizeValid && (
+                        <span className="file_invalid">
+                          {" "}
+                          Arquivo muito grande
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="drop-file-preview__item__info">
-                <p>{item.item.name}</p>
-                <p>{fileSize(item.item.size)}</p>
+                {!item.uploaded && (
+                  <CircularProgressbar
+                    styles={{
+                      root: { width: 24 },
+                      path: { stroke: "#0F70CA" },
+                    }}
+                    strokeWidth={10}
+                    value={item.progress}
+                  />
+                )}
+
+                <div className="container_icons">
+                  {item.uploaded && item.url && (
+                    <a href={item.url} target={"_blank"}>
+                      <MdLink size={28} color="#615c5c" />
+                    </a>
+                  )}
+                  {item.error && <MdError size={28} color="#c03333" />}
+                  {item.uploaded && !item.error && (
+                    <MdCheckCircle size={28} color="#1eac65" />
+                  )}
+                  {item.uploaded && (
+                    <span
+                      className="drop-file-preview__item__del"
+                      onClick={() => fileRemove(item)}
+                    >
+                      X
+                    </span>
+                  )}
+                  {item.error && (
+                    <span
+                      className="drop-file-preview__item__del"
+                      onClick={() => fileRemove(item)}
+                    >
+                      X
+                    </span>
+                  )}
+                </div>
               </div>
-              {!item.uploaded && (
-                <CircularProgressbar
-                  styles={{
-                    root: { width: 24 },
-                    path: { stroke: "#0F70CA" },
-                  }}
-                  strokeWidth={10}
-                  value={item.progress}
-                />
-              )}
-              {item.uploaded && <MdCheckCircle size={28} />}
-              {item.uploaded && item.url && <MdCheckCircle size={28} />}
-              {item.uploaded && (
-                <span
-                  className="drop-file-preview__item__del"
-                  onClick={() => fileRemove(item)}
-                >
-                  X
-                </span>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : null}
     </>
